@@ -1,54 +1,64 @@
 import 'package:flutter/material.dart';
+import 'package:lab2/object/task.dart';
+
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
+
   @override
   // ignore: library_private_types_in_public_api
   _HomePageState createState() => _HomePageState();
 }
+
 class _HomePageState extends State<HomePage> {
-  List<String> tasks = [
-    'Task 1',
-    'Task 2',
-    'Task 3',
-    'Task 4',
+  List<Task> tasks = [
+    Task(name: 'Task 1'),
+    Task(name: 'Task 2'),
+    Task(name: 'Task 3'),
+    Task(name: 'Task 4'),
   ];
-  List<bool> taskCompleted = [false, false, false, false];
+
+  void _showAddTaskDialog() {
+    // Ваш код для діалогу
+  }
+
   @override
   Widget build(BuildContext context) {
-    final screenSize = MediaQuery.sizeOf(context);
+    final Size screenSize = MediaQuery.sizeOf(context);
+    // ignore: unused_local_variable
+    final double screenWidth = screenSize.width;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Task Tracker'),
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            onPressed: () {
-              setState(() {
-                tasks.add('New Task ${tasks.length + 1}');
-                taskCompleted.add(false);
-              });
-            },
+            onPressed: _showAddTaskDialog,
           ),
         ],
       ),
       body: ListView.builder(
         itemCount: tasks.length,
         itemBuilder: (context, index) {
-          return CheckboxListTile(
-            title: Text(
-              tasks[index],
-              style: TextStyle(
-                fontSize: screenSize.width * 0.04,
+          return Dismissible(
+            key: Key(tasks[index].name),
+            direction: DismissDirection.endToStart,
+            background: Container(
+              color: Colors.red,
+              alignment: Alignment.centerRight,
+              padding: const EdgeInsets.only(right: 20),
+              child: const Icon(
+                Icons.delete,
+                color: Colors.white,
               ),
             ),
-            value: taskCompleted[index],
-            onChanged: (value) {
+            onDismissed: (direction) {
               setState(() {
-                if (value != null) {
-                  taskCompleted[index] = value;
-                }
+                tasks.removeAt(index);
               });
             },
+            child: ListTile(
+              title: Text(tasks[index].name),
+            ),
           );
         },
       ),

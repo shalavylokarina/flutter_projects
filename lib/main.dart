@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_lab2/pages/home_page.dart';
-import 'package:flutter_lab2/pages/login_page.dart';
-import 'package:flutter_lab2/pages/profile_page.dart';
-import 'package:flutter_lab2/pages/registration_page.dart';
+import 'package:lab2/pages/home_page.dart';
+import 'package:lab2/pages/login_page.dart';
+import 'package:lab2/pages/profile_page.dart';
+import 'package:lab2/pages/registration_page.dart';
 
 
 void main() {
@@ -30,4 +30,3 @@ class MyApp extends StatelessWidget {
     );
   }
 }
-

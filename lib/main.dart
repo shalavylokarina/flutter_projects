@@ -3,6 +3,7 @@ import 'package:lab2/pages/home_page.dart';
 import 'package:lab2/pages/login_page.dart';
 import 'package:lab2/pages/profile_page.dart';
 import 'package:lab2/pages/registration_page.dart';
+import 'package:lab2/pages/edit_profile_page.dart';
 
 
 void main() {
@@ -26,6 +27,7 @@ class MyApp extends StatelessWidget {
         '/registration': (context) => const RegistrationPage(),
         '/home': (context) => const HomePage(),
         '/profile': (context) => const ProfilePage(),
+        '/edit_profile': (context) => const EditProfilePage(),
       },
     );
   }

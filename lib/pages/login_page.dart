@@ -1,6 +1,7 @@
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:lab2/repository/local_storage_repository.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+
 class LoginPage extends StatefulWidget {
   
   // ignore: use_key_in_widget_constructors
@@ -18,8 +19,8 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   late TextEditingController _passwordController;
   final LocalStorageRepository _localStorageRepository = LocalStorageRepository();
 
-  Future<void> _saveRegistrationData() async {
-    await _localStorageRepository.loginUser(
+  Future<bool> _loginUser() async {
+    return await _localStorageRepository.loginUser(
       _emailController.text,
       _passwordController.text,
     );
@@ -39,6 +40,10 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     _passwordController = TextEditingController();
 
     _controller.forward();
+
+    _checkAutoLogin();
+
+    Connectivity().checkConnectivity();
   }
   @override
   void dispose() {
@@ -47,44 +52,111 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     _passwordController.dispose();
     super.dispose();
   }
-   Future<bool> _loginUser(String email, String password) async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    final String? storedEmail = prefs.getString('email');
-    final String? storedPassword = prefs.getString('password');
-    return email == storedEmail && password == storedPassword;
-  }
-  void _login() async {
-    final String email = _emailController.text;
-    final String password = _passwordController.text;
-    final bool loggedIn = await _loginUser(email, password);
+  
+    void _checkAutoLogin() async {
+    final connectivityResult = await Connectivity().checkConnectivity();
+    // ignore: unrelated_type_equality_checks
+    if (connectivityResult == ConnectivityResult.none) {
+      _showNoInternetDialog();
+      return;
+    }
 
-    if (loggedIn) {
-       if (mounted) {
-        // Зберігаємо дані реєстрації
-        await _saveRegistrationData();
-        // ignore: use_build_context_synchronously
-        Navigator.pushReplacementNamed(context, '/home');
-      }
-    } else {
+   await Future.delayed(const Duration(seconds: 3));
+    final bool userDataExists = await _localStorageRepository.hasUserData();
+    if (userDataExists) {
       showDialog(
         // ignore: use_build_context_synchronously
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('Login Failed'),
-          content: const Text('Invalid email or password. Please try again.'),
+          title: const Text('Auto-Login'),
+          content: const Text('Do you want to log in automatically?'),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
               },
-              child: const Text('OK'),
+              child: const Text('No'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pushReplacementNamed(context, '/home');
+              },
+              child: const Text('Yes'),
             ),
           ],
         ),
       );
     }
   }
-
+void _showNoInternetDialog() {
+    showDialog<void>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('No Internet Connection'),
+          content: const Text('You are not connected to the internet. '
+              'Please check your connection and try again.'),
+          actions: [
+            TextButton(
+              child: const Text('OK'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+ 
+  void _login() async {
+    final connectivityResult = await Connectivity().checkConnectivity();
+    // ignore: unrelated_type_equality_checks
+    if (connectivityResult == ConnectivityResult.none) {
+      _showNoInternetDialog();
+    } else {
+      final bool loggedIn = await _loginUser();
+      if (loggedIn) {
+        showDialog(
+          // ignore: use_build_context_synchronously
+          context: context,
+          builder: (context) =>
+              AlertDialog(
+                title: const Text('Login Successful'),
+                content: const Text('You have successfully logged in.'),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      Navigator.pushReplacementNamed(context, '/home');
+                    },
+                    child: const Text('OK'),
+                  ),
+                ],
+              ),
+        );
+      } else {
+        showDialog(
+          // ignore: use_build_context_synchronously
+          context: context,
+          builder: (context) =>
+              AlertDialog(
+                title: const Text('Login Failed'),
+                content: const Text(
+                    'Invalid email or password. Please try again.'),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                    child: const Text('OK'),
+                  ),
+                ],
+              ),
+        );
+      }
+    }
+  }
   @override
   Widget build(BuildContext context) {
     final Size screenSize = MediaQuery.sizeOf(context);
@@ -111,7 +183,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                 ),
               ),
             ),
-            // Email field
+            
             FadeTransition(
               opacity: _formAnimation,
               child: TextFormField(

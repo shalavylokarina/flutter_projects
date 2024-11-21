@@ -20,6 +20,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   final LocalStorageRepository _localStorageRepository = LocalStorageRepository();
   Uint8List? profileImageBytes;
   String? profileImagePath;
+  String? _username;
 
   @override
   void initState() {
@@ -33,6 +34,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
     setState(() {
       _usernameController.text = userInfo['username'] ?? '';
+      _username = userInfo['username'] ?? '';
       profileImagePath = imagePath;
 
       if (kIsWeb && profileImagePath != null) {
@@ -73,21 +75,26 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
   }
 
-  // ignore: unused_element
   Future<void> _saveProfile() async {
+    // Зберігаємо дані користувача
     await _localStorageRepository.saveRegistrationData(
       _usernameController.text,
       (await _localStorageRepository.getUserInfo())['email'] ?? '',
       (await _localStorageRepository.getRegistrationData())['password'] ?? '',
     );
 
+    // Оновлюємо значення _username
+    setState(() {
+      _username = _usernameController.text;
+    });
+
     // Зберігаємо шлях до зображення
     if (profileImagePath != null) {
       await _localStorageRepository.saveProfileImagePath(profileImagePath!);
     }
-     setState(() {});
+
     // ignore: use_build_context_synchronously
-    Navigator.pop(context);
+    Navigator.pop(context); // Повертаємося до профілю після збереження
   }
 
   @override
@@ -125,15 +132,12 @@ class _EditProfilePageState extends State<EditProfilePage> {
             ),
             const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: () async {
-              if (profileImagePath != null) {
-               await _localStorageRepository.saveProfileImagePath(profileImagePath!);
-       }
-               // ignore: use_build_context_synchronously
-               Navigator.pop(context); // Повертаємося до профілю після збереження
-  },
+              onPressed: _saveProfile,
               child: const Text('Save Changes'),
             ),
+            const SizedBox(height: 20),
+            if (_username != null)
+              Text('Current username: $_username', style: Theme.of(context).textTheme.bodyLarge),
           ],
         ),
       ),

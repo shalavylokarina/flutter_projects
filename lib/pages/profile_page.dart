@@ -1,11 +1,12 @@
+import 'dart:async';
+
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:lab2/repository/local_storage_repository.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class ProfilePage extends StatefulWidget {
-  // ignore: use_key_in_widget_constructors
-  const ProfilePage({Key? key});
-  
+  const ProfilePage({super.key});
+
   @override
   // ignore: library_private_types_in_public_api
   _ProfilePageState createState() => _ProfilePageState();
@@ -13,16 +14,46 @@ class ProfilePage extends StatefulWidget {
 
 class _ProfilePageState extends State<ProfilePage> {
   late Future<Map<String, String>> _userInfoFuture;
+  late bool _isConnected;
+  late final LocalStorageRepository _localStorageRepository;
+  late final StreamSubscription<ConnectivityResult> _connectivitySubscription;
 
   @override
   void initState() {
     super.initState();
+    _localStorageRepository = LocalStorageRepository();
     _userInfoFuture = _getUserInfo();
+    _checkConnectivity();
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen((ConnectivityResult result) {
+      setState(() {
+        _isConnected = (result != ConnectivityResult.none);
+      });
+    });
+  }
+
+  Future<void> _checkConnectivity() async {
+    final result = await Connectivity().checkConnectivity();
+    setState(() {
+      _isConnected = (result != ConnectivityResult.none);
+    });
+  }
+
+  @override
+  void dispose() {
+    _connectivitySubscription.cancel();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder(
+    return Scaffold(
+      appBar: AppBar(title: const Text('User Profile')),
+      body: _isConnected ? _buildUserProfile() : _buildNoConnectionMessage(),
+    );
+  }
+
+  Widget _buildUserProfile() {
+    return FutureBuilder<Map<String, String>>(
       future: _userInfoFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -31,61 +62,56 @@ class _ProfilePageState extends State<ProfilePage> {
         if (snapshot.hasError) {
           return Center(child: Text('Error: ${snapshot.error}'));
         }
-        final Map<String, String> userInfo = snapshot.data as Map<String, String>;
-        final String username = userInfo['username'] ?? 'Username';
-        final String email = userInfo['email'] ?? 'Email';
+        final userInfo = snapshot.data ?? {};
+        final username = userInfo['username'] ?? 'Username';
+        final email = userInfo['email'] ?? 'Email';
 
-        return Scaffold(
-          appBar: AppBar(title: const Text('User Profile')),
-          body: Center(
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const CircleAvatar(
-                    radius: 50,
-                    backgroundColor: Colors.blue,
-                    child: Icon(
-                      Icons.person,
-                      size: 50,
-                      color: Colors.white,
-                    ),
+        return Center(
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const CircleAvatar(
+                  radius: 50,
+                  backgroundColor: Colors.blue,
+                  child: Icon(
+                    Icons.person,
+                    size: 50,
+                    color: Colors.white,
                   ),
-                  const SizedBox(height: 20),
-                  Text(
-                    username,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  username,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
                   ),
-                  const SizedBox(height: 10),
-                  Text(
-                    email,
-                    style: const TextStyle(
-                      fontSize: 18,
-                    ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  email,
+                  style: const TextStyle(
+                    fontSize: 18,
                   ),
-                  const SizedBox(height: 20),
-                  ElevatedButton(
-                    onPressed: () {
-                      Navigator.pushNamed(context, '/edit_profile').then((_) {
-                        setState(() {
-                          _userInfoFuture = _getUserInfo();
-                        });
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/edit_profile').then((_) {
+                      setState(() {
+                        _userInfoFuture = _getUserInfo();
                       });
-                    },
-                    child: const Text('Edit Profile'),
-                  ),
-                  const SizedBox(height: 10),
-                  ElevatedButton(
-                    onPressed: () {
-                      _logout();
-                    },
-                    child: const Text('Logout'),
-                  ),
-                ],
-              ),
+                    });
+                  },
+                  child: const Text('Edit Profile'),
+                ),
+                const SizedBox(height: 10),
+                ElevatedButton(
+                  onPressed: () => _showLogoutConfirmationDialog(context),
+                  child: const Text('Logout'),
+                ),
+              ],
             ),
           ),
         );
@@ -93,18 +119,62 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  final LocalStorageRepository _localStorageRepository = LocalStorageRepository();
-
-  Future<Map<String, String>> _getUserInfo() async {
-    final userInfo = await _localStorageRepository.getUserInfo();
-    return userInfo;
+  Widget _buildNoConnectionMessage() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Text(
+            'No Internet Connection',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 10),
+          ElevatedButton(
+            onPressed: _checkConnectivity,
+            child: const Text('Retry'),
+          ),
+        ],
+      ),
+    );
   }
 
-  Future<void> _logout() async {
-    // ignore: unused_local_variable
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
-    if (mounted) {  // Перевіряємо, чи віджет ще змонтовано
-      Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
-    }
+  Future<Map<String, String>> _getUserInfo() async {
+  final userInfo = await _localStorageRepository.getUserInfo();
+  return userInfo.map((key, value) => MapEntry(key, value.toString()));
+}
+
+
+  Future<void> _logout(BuildContext context) async {
+    Navigator.pushNamedAndRemoveUntil(context, '/login', (route) => false);
+  }
+
+  Future<void> _showLogoutConfirmationDialog(BuildContext context) async {
+    return showDialog<void>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Confirm Logout'),
+          content: const Text('Are you sure you want to logout?'),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _logout(context);
+              },
+              child: const Text('Logout'),
+            ),
+          ],
+        );
+      },
+    );
   }
 }
